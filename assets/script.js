@@ -23,6 +23,9 @@ async function fetchRevisions() {
 
   resultsTable.innerHTML = ""; // Clear previous results
 
+  const totalYears = currentYear - startYear + 1;
+  let completedYears = 0;
+
   for (let year = startYear; year <= currentYear; year++) {
     const timestamp = `${year}0101`;
     const revisionUrl = `${baseApiUrl}?action=query&prop=revisions&titles=${encodeURIComponent(
@@ -105,6 +108,11 @@ async function fetchRevisions() {
           console.log("Problem parsing ref", e);
         }
       });
+      // Update progress bar
+      completedYears++;
+      const progress = (completedYears / totalYears) * 100;
+      progressBar.style.width = `${progress}%`;
+      progressBar.setAttribute("aria-valuenow", progress);
     } catch (error) {
       console.error("Failed to fetch or parse data:", error);
     }
