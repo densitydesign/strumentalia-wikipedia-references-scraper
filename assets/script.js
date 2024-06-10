@@ -1,13 +1,13 @@
-function escapeCSSId(id) {
-  return id.replace(/([ #;?%&,.+*~\':"!^$[\]()=>|/@])/g, "\\$1");
-}
-
 document.getElementById("startYear").oninput = function () {
   document.getElementById("yearDisplay").innerText = this.value;
 };
 
-document.querySelector("button").onclick = function () {
+document.getElementById("fetchButton").onclick = function () {
   fetchRevisions();
+};
+
+document.getElementById("downloadButton").onclick = function () {
+  downloadCSV();
 };
 
 async function fetchRevisions() {
@@ -21,8 +21,9 @@ async function fetchRevisions() {
     .getElementById("resultsTable")
     .getElementsByTagName("tbody")[0];
 
+  resultsTable.innerHTML = ""; // Clear previous results
+
   for (let year = startYear; year <= currentYear; year++) {
-    // Adjust this to the earliest year you want
     const timestamp = `${year}0101`;
     const revisionUrl = `${baseApiUrl}?action=query&prop=revisions&titles=${encodeURIComponent(
       pageTitle
@@ -35,19 +36,16 @@ async function fetchRevisions() {
       const pageId = Object.keys(pages)[0];
       const revision = pages[pageId].revisions[0];
       const oldid = revision.revid;
-      console.log(pageTitle, year, oldid);
 
       const parseUrl = `${baseApiUrl}?action=parse&oldid=${oldid}&format=json&origin=*`;
-      console.log(parseUrl);
       const parseResponse = await fetch(parseUrl);
       const parseData = await parseResponse.json();
       const htmlContent = parseData.parse.text["*"];
-      console.log(htmlContent);
 
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, "text/html");
       const refs = doc.querySelectorAll("ol.references li");
-      console.log(refs);
+
       refs.forEach((li) => {
         try {
           const liID = li.id;
@@ -57,7 +55,6 @@ async function fetchRevisions() {
             span = li.querySelector("span.reference-text a");
           }
 
-          // Handle counting <b> tags inside span with class 'mw-cite-backlink'
           const backlinkSpan = li.querySelector("span.mw-cite-backlink");
           const boldTagsCount = backlinkSpan
             ? backlinkSpan.querySelectorAll("b").length
@@ -69,17 +66,12 @@ async function fetchRevisions() {
             ? new URL(url).hostname
             : "Internal Wikipedia Link";
 
-          // Handling anchor links
           if (url.startsWith("#")) {
-            //console.log("citazione", url);
-
             const escapedId = escapeCSSId(url.substring(1));
             const targetCite = doc.querySelector(
               `[id="${escapedId}"] a.external.text`
             );
 
-            //const targetCite = doc.querySelector(`cite${url} a.external`);
-            //console.log("target", targetCite);
             if (targetCite) {
               url = targetCite.href;
               text = targetCite.textContent;
@@ -88,6 +80,7 @@ async function fetchRevisions() {
                 : "Internal Wikipedia Link";
             }
           }
+
           const fullText = li.innerText;
 
           const row = resultsTable.insertRow();
@@ -109,11 +102,42 @@ async function fetchRevisions() {
           cellCount.innerHTML = boldTagsCount;
           cellFullText.innerHTML = fullText;
         } catch (e) {
-          console.log("problem parsing ref", e);
+          console.log("Problem parsing ref", e);
         }
       });
     } catch (error) {
       console.error("Failed to fetch or parse data:", error);
     }
   }
+
+  // Enable the download button after fetching is complete
+  document.getElementById("downloadButton").disabled = false;
+}
+
+function escapeCSSId(id) {
+  return id.replace(/(:|\.|\[|\]|,|=|@)/g, "\\$1");
+}
+
+function downloadCSV() {
+  const table = document.getElementById("resultsTable");
+  const rows = table.querySelectorAll("tr");
+  let csvContent = "";
+
+  rows.forEach((row) => {
+    const cols = row.querySelectorAll("td, th");
+    const rowData = [];
+    cols.forEach((col) =>
+      rowData.push(`"${col.innerText.replace(/"/g, '""')}"`)
+    );
+    csvContent += rowData.join(",") + "\n";
+  });
+
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.setAttribute("href", url);
+  a.setAttribute("download", "wikipedia_references.csv");
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
