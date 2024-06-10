@@ -10,8 +10,21 @@ document.getElementById("downloadButton").onclick = function () {
   downloadCSV();
 };
 
+function getWikipediaTitleFromURL(url) {
+  const regex = /wiki\/([^#?]+)/;
+  const matches = url.match(regex);
+  return matches ? decodeURIComponent(matches[1]) : null;
+}
+
 async function fetchRevisions() {
-  const pageTitle = document.getElementById("wikiPage").value;
+  const pageUrl = document.getElementById("wikiPage").value;
+  const pageTitle = getWikipediaTitleFromURL(pageUrl);
+  if (!pageTitle) {
+    alert(
+      "Please enter a valid Wikipedia page URL, e.g. https://en.wikipedia.org/wiki/Artificial_intelligence"
+    );
+    return;
+  }
   const baseApiUrl = "https://en.wikipedia.org/w/api.php";
   const startYear = parseInt(document.getElementById("startYear").value);
 
