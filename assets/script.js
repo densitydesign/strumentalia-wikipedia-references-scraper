@@ -6,10 +6,6 @@ document.getElementById("fetchButton").onclick = function () {
   fetchRevisions();
 };
 
-document.getElementById("downloadButton").onclick = function () {
-  downloadCSV();
-};
-
 function getWikipediaTitleFromURL(url) {
   const regex = /wiki\/([^#?]+)/;
   const matches = url.match(regex);
@@ -25,8 +21,20 @@ async function fetchRevisions() {
     );
     return;
   }
-  const baseApiUrl = "https://en.wikipedia.org/w/api.php";
+  const baseUrl = pageUrl.split("/")[2];
+  const baseApiUrl = "https://" + baseUrl + "/w/api.php";
   const startYear = parseInt(document.getElementById("startYear").value);
+
+  //update variables for csv export
+
+  document.getElementById("downloadButton").onclick = function () {
+    downloadCSV(
+      baseUrl.split(".")[0],
+      pageTitle,
+      startYear,
+      new Date().getFullYear()
+    );
+  };
 
   let currentDate = new Date();
   let currentYear = currentDate.getFullYear();
@@ -121,14 +129,14 @@ async function fetchRevisions() {
           console.log("Problem parsing ref", e);
         }
       });
-      // Update progress bar
-      completedYears++;
-      const progress = (completedYears / totalYears) * 100;
-      progressBar.style.width = `${progress}%`;
-      progressBar.setAttribute("aria-valuenow", progress);
     } catch (error) {
       console.error("Failed to fetch or parse data:", error);
     }
+    // Update progress bar
+    completedYears++;
+    const progress = (completedYears / totalYears) * 100;
+    progressBar.style.width = `${progress}%`;
+    progressBar.setAttribute("aria-valuenow", progress);
   }
 
   // Enable the download button after fetching is complete
@@ -139,7 +147,9 @@ function escapeCSSId(id) {
   return id.replace(/(:|\.|\[|\]|,|=|@)/g, "\\$1");
 }
 
-function downloadCSV() {
+//downloadCSV(baseUrl.split(".")[0],pageTitle, startYear, new Date().getFullYear());
+
+function downloadCSV(lang, pageTitle, startYear, endYear) {
   const table = document.getElementById("resultsTable");
   const rows = table.querySelectorAll("tr");
   let csvContent = "";
@@ -157,7 +167,10 @@ function downloadCSV() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.setAttribute("href", url);
-  a.setAttribute("download", "wikipedia_references.csv");
+  a.setAttribute(
+    "download",
+    `references_${lang}_${pageTitle}_${startYear}-${endYear}.csv`
+  );
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
